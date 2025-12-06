@@ -1,13 +1,7 @@
 const { MongoClient } = require("mongodb");
-require("dotenv").config(); // Charge les variables depuis .env
 
-const uri = process.env.DB_URI;
-
-if (!uri) {
-  throw new Error(
-    "❌ Erreur : DB_URI n'est pas défini ! Ajoute cette variable dans Render ou dans un fichier .env"
-  );
-}
+// Ton URI complet ici
+const uri = "mongodb+srv://jeux56330_db_user:<db_password>@cluster0.sotyk5g.mongodb.net/mini-fortnite?retryWrites=true&w=majority";
 
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
@@ -17,7 +11,7 @@ const client = new MongoClient(uri, {
 let db;
 
 async function connectDB() {
-  if (db) return db; // Si déjà connecté, retourne la connexion existante
+  if (db) return db;
   try {
     await client.connect();
     db = client.db("mini-fortnite");
@@ -25,7 +19,7 @@ async function connectDB() {
     return db;
   } catch (err) {
     console.error("❌ Impossible de se connecter à MongoDB :", err);
-    process.exit(1); // Quitte le serveur si connexion impossible
+    process.exit(1);
   }
 }
 
