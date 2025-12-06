@@ -1,46 +1,47 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+require('dotenv').config();
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const { connectDB } = require("./db");
+const authRoutes = require("./auth");
+const shopRoutes = require("./shop");
+const { games, createPrivateGame, joinPrivateGame } = require("./game");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(authRoutes);
+app.use(shopRoutes);
+app.use(express.static("../public"));
+
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server,{ cors:{ origin:"*" } });
 
-// Servir les fichiers client
-app.use(express.static('public'));
-
-let players = {};
-let lootItems = [
-  { id: 'loot1', x: 0, z: 0 },
-  { id: 'loot2', x: 2, z: 2 },
-  { id: 'loot3', x: -2, z: -2 }
-];
-
-io.on('connection', socket => {
-  console.log('Player connected: ' + socket.id);
-  players[socket.id] = { x:0, y:0, z:0 };
-
-  // Envoyer les autres joueurs et le loot au nouveau joueur
-  socket.emit('currentPlayers', players);
-  socket.emit('currentLoot', lootItems);
-
-  socket.broadcast.emit('newPlayer', {id: socket.id, pos: players[socket.id]});
-
-  socket.on('playerMovement', pos => {
-    players[socket.id] = pos;
-    socket.broadcast.emit('playerMoved', {id: socket.id, pos});
+io.on('connection', socket=>{
+  socket.on('joinPrivateGame', ({ code, playerId })=>{
+    try {
+      const game = joinPrivateGame(code, playerId);
+      socket.join(code);
+      socket.to(code).emit('newPlayer', {id:playerId, pos:game.players[playerId]});
+    } catch(err){ socket.emit('error', err.message);}
   });
 
-  socket.on('lootCollected', lootId => {
-    lootItems = lootItems.filter(l => l.id !== lootId);
-    io.emit('lootRemoved', lootId);
+  socket.on('playerMovement', ({code, playerId, pos})=>{
+    if(games[code]){
+      games[code].players[playerId]=pos;
+      socket.to(code).emit('playerMoved',{id:playerId,pos});
+    }
   });
 
-  socket.on('disconnect', () => {
-    delete players[socket.id];
-    socket.broadcast.emit('playerDisconnected', socket.id);
+  socket.on('lootCollected', ({code, lootId, playerId})=>{
+    if(games[code]){
+      games[code].loot = games[code].loot.filter(l=>l.id!==lootId);
+      socket.to(code).emit('lootRemoved', lootId);
+      games[code].players[playerId].score+=10;
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+connectDB().then(()=>server.listen(PORT,()=>console.log(`Server running on port ${PORT}`)));
