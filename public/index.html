@@ -3,12 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <title>Mini Fortnite</title>
-<style>body{margin:0;overflow:hidden;background:#87CEEB;}</style>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #87CEEB;
+    font-family: Arial;
+  }
+
+  #login-box {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: #000000cc;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 999;
+  }
+  #login-box input { width: 180px; margin-bottom: 10px; }
+</style>
 </head>
 <body>
+
+<!-- ✔ Interface de connexion Supabase -->
+<div id="login-box">
+  <h3>Connexion</h3>
+  <input id="email" type="email" placeholder="Email"><br>
+  <input id="password" type="password" placeholder="Mot de passe"><br>
+  <button onclick="registerUser()">Créer un compte</button>
+  <button onclick="loginUser()">Se connecter</button>
+</div>
+
+<!-- ✔ Three.js -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+
+<!-- ✔ Socket.io (plus tard pour multi) -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="main.js"></script>
+
+<!-- ✔ Supabase : login + stockage -->
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js";
+
+const SUPABASE_URL = "https://vajxerqptpoahrhlkiah.supabase.co";
+const SUPABASE_PUBLIC_KEY = "sb_publishable_Vw99alRJfrSCLfPjlo-nAQ_4jfzRXxv";
+
+// ✔ Client Supabase prêt
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
+
+// ✔ Fonctions globales utilisables dans main.js
+window.registerUser = async function () {
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+
+  const { error } = await supabase.auth.signUp({ email, password: pass });
+  if (error) alert(error.message);
+  else alert("Compte créé !");
+};
+
+window.loginUser = async function () {
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) alert(error.message);
+  else {
+    alert("Connecté !");
+    document.getElementById("login-box").style.display = "none";
+
+    // 🔥 Charger automaticment les données du joueur
+    import("./main.js").then(module => {
+      if (module.loadPlayerData) module.loadPlayerData();
+    });
+  }
+};
+</script>
+
+<!-- ✔ Ton jeu -->
+<script type="module" src="main.js"></script>
+
 </body>
 </html>
